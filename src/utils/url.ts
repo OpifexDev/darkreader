@@ -1,12 +1,12 @@
 import type {UserSettings, TabInfo} from '../definitions';
 
-import {cachedFactory} from './cache';
+import {cachedFactory, LRUMap} from './cache';
 
 declare const __THUNDERBIRD__: boolean;
 
 let anchor: HTMLAnchorElement;
 
-export const parsedURLCache = new Map<string, URL>();
+export const parsedURLCache = new LRUMap<string, URL>(512);
 
 function fixBaseURL($url: string): string {
     if (!anchor) {
