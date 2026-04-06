@@ -28,6 +28,7 @@ import {variablesStore} from './variables';
 import {variableScheduler, initVariableScheduler} from './variable-scheduler';
 import {watchForStyleChanges, stopWatchingForStyleChanges} from './watch';
 import {injectInstantDarkStyle, removeInstantDarkStyle, markPhaseComplete, clearPhaseAttribute} from './instant-style';
+import {ChunkedStylesheetProcessor} from './chunked-processor';
 
 export {createFallbackFactory} from './modify-css';
 
@@ -281,10 +282,35 @@ function createDynamicStyleOverrides() {
     const rootVarsStyle = createOrUpdateStyle('darkreader--root-vars');
     variablesStore.putRootVars(rootVarsStyle, theme!);
 
-    styleManagers.forEach((manager) => manager.render(theme!, ignoredImageAnalysisSelectors!));
-    if (loadingStyles.size === 0) {
-        cleanFallbackStyle();
+    // Prioritize: head styles are critical, body styles are standard
+    const criticalManagers: StyleManager[] = [];
+    const standardManagers: StyleManager[] = [];
+
+    for (const [element, manager] of styleManagers) {
+        const isInHead = element.parentNode === document.head;
+        if (isInHead) {
+            criticalManagers.push(manager);
+        } else {
+            standardManagers.push(manager);
+        }
     }
+
+    const processor = new ChunkedStylesheetProcessor<StyleManager>({
+        processSheet: (manager) => {
+            manager.render(theme!, ignoredImageAnalysisSelectors);
+        },
+        onComplete: () => {
+            removeInstantDarkStyle();
+            markPhaseComplete();
+            if (loadingStyles.size === 0) {
+                cleanFallbackStyle();
+            }
+        },
+    });
+
+    processor.enqueueCritical(criticalManagers);
+    processor.enqueue(standardManagers);
+    processor.start();
     newManagers.forEach((manager) => manager.watch());
 
     const inlineStyleElements = toArray(document.querySelectorAll(INLINE_STYLE_SELECTOR)) as HTMLElement[];
@@ -419,8 +445,7 @@ function onDOMReady() {
 function runDynamicStyle() {
     createDynamicStyleOverrides();
     watchForUpdates();
-    removeInstantDarkStyle();
-    markPhaseComplete();
+    // removeInstantDarkStyle() and markPhaseComplete() are now called in chunked processor onComplete
 }
 
 function createThemeAndWatchForUpdates() {
