@@ -25,6 +25,7 @@ import type {StyleElement, StyleManager} from './style-manager';
 import {manageStyle, getManageableStyles, cleanLoadingLinks, setIgnoredCSSURLs} from './style-manager';
 import {injectProxy} from './stylesheet-proxy';
 import {variablesStore} from './variables';
+import {variableScheduler, initVariableScheduler} from './variable-scheduler';
 import {watchForStyleChanges, stopWatchingForStyleChanges} from './watch';
 
 export {createFallbackFactory} from './modify-css';
@@ -41,6 +42,9 @@ let fixes: DynamicThemeFix | null = null;
 let isIFrame: boolean | null = null;
 let ignoredImageAnalysisSelectors: string[] = [];
 let ignoredInlineSelectors: string[] = [];
+
+initVariableScheduler(() => variablesStore.matchVariablesAndDependents());
+export {variableScheduler};
 
 let staticStyleMap = new WeakMap<ParentNode, Map<string, HTMLStyleElement>>();
 
@@ -267,7 +271,8 @@ function createDynamicStyleOverrides() {
             variablesStore.addRulesForMatching(detail!.rules);
         });
 
-    variablesStore.matchVariablesAndDependents();
+    variableScheduler.markDirty();
+    variableScheduler.flushIfDirty();
     variablesStore.setOnRootVariableChange(() => {
         const rootVarsStyle = createOrUpdateStyle('darkreader--root-vars');
         variablesStore.putRootVars(rootVarsStyle, theme!);
@@ -291,7 +296,8 @@ function createDynamicStyleOverrides() {
     });
     inlineStyleElements.forEach((el: HTMLElement) => overrideInlineStyle(el, theme!, ignoredInlineSelectors, ignoredImageAnalysisSelectors));
     handleAdoptedStyleSheets(document);
-    variablesStore.matchVariablesAndDependents();
+    variableScheduler.markDirty();
+    variableScheduler.flushIfDirty();
 
     tryInvertChromePDF();
 
@@ -310,7 +316,7 @@ function createDynamicStyleOverrides() {
                 const {cssRules} = sheet;
                 variablesStore.addRulesForMatching(cssRules);
             });
-            variablesStore.matchVariablesAndDependents();
+            variableScheduler.markDirty();
             const response: Array<{sheetId: number; commands: any}> = [];
             sheets.forEach(({sheetId, sheet}: NodeSheet) => {
                 const fallback = getAdoptedStyleSheetFallback(sheet);
@@ -369,7 +375,8 @@ function createManager(element: StyleElement) {
             return;
         }
         variablesStore.addRulesForMatching(details.rules);
-        variablesStore.matchVariablesAndDependents();
+        variableScheduler.markDirty();
+        variableScheduler.flushIfDirty();
         manager.render(theme!, ignoredImageAnalysisSelectors);
         if (__TEST__) {
             document.dispatchEvent(new CustomEvent('__darkreader__test__dynamicUpdateComplete'));
@@ -441,7 +448,8 @@ function handleAdoptedStyleSheets(node: ShadowRoot | Document) {
             sheets.forEach((s) => {
                 variablesStore.addRulesForMatching(s.cssRules);
             });
-            variablesStore.matchVariablesAndDependents();
+            variableScheduler.markDirty();
+            variableScheduler.flushIfDirty();
             newManger.render(theme!, ignoredImageAnalysisSelectors);
         });
     }
@@ -483,7 +491,8 @@ function watchForUpdates() {
             .forEach((detail) => {
                 variablesStore.addRulesForMatching(detail!.rules);
             });
-        variablesStore.matchVariablesAndDependents();
+        variableScheduler.markDirty();
+        variableScheduler.flushIfDirty();
         newManagers.forEach((manager) => manager.render(theme!, ignoredImageAnalysisSelectors));
         newManagers.forEach((manager) => manager.watch());
         stylesToRestore.forEach((style) => styleManagers.get(style)!.restore());
@@ -497,7 +506,8 @@ function watchForUpdates() {
         if (element === document.documentElement) {
             const styleAttr = element.getAttribute('style') || '';
             if (styleAttr.includes('--')) {
-                variablesStore.matchVariablesAndDependents();
+                variableScheduler.markDirty();
+                variableScheduler.flushIfDirty();
                 const rootVarsStyle = createOrUpdateStyle('darkreader--root-vars');
                 variablesStore.putRootVars(rootVarsStyle, theme!);
             }

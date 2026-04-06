@@ -11,6 +11,7 @@ import {getImageDetails} from './image';
 import {getModifiableCSSDeclaration} from './modify-css';
 import type {CSSVariableModifier, ModifiedVarDeclaration} from './variables';
 import {variablesStore} from './variables';
+import {variableScheduler} from './variable-scheduler';
 
 
 interface Overrides {
@@ -196,7 +197,7 @@ function deepWatchForInlineStyles(
             shadowRootDiscovered(n.shadowRoot!);
             deepWatchForInlineStyles(n.shadowRoot!, elementStyleDidChange, shadowRootDiscovered);
         });
-        variablesStore.matchVariablesAndDependents();
+        variableScheduler.markDirty();
     }
 
     const treeObserver = createOptimizedTreeObserver(root, {
@@ -229,7 +230,7 @@ function deepWatchForInlineStyles(
                 elementStyleDidChange(target);
             }
         });
-        variablesStore.matchVariablesAndDependents();
+        variableScheduler.markDirty();
     });
     const attrObserver = new MutationObserver((mutations) => {
         if (timeoutId) {

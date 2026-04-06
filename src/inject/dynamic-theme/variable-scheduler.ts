@@ -1,6 +1,12 @@
 type ResolveFn = () => void;
 type RAFFn = (callback: () => void) => number;
 
+export let variableScheduler: VariableResolutionScheduler;
+
+export function initVariableScheduler(resolveFn: ResolveFn): void {
+    variableScheduler = new VariableResolutionScheduler(resolveFn);
+}
+
 export class VariableResolutionScheduler {
     private dirty = false;
     private scheduled = false;
