@@ -6,6 +6,7 @@ import {clamp} from '../../utils/math';
 import {isCSSColorSchemePropSupported, isLayerRuleSupported} from '../../utils/platform';
 import {getMatches} from '../../utils/text';
 import {getAbsoluteURL} from '../../utils/url';
+import {LRUMap} from '../../utils/cache';
 import {readImageDetailsCache, writeImageDetailsCache} from '../cache';
 import {logWarn, logInfo} from '../utils/log';
 
@@ -305,7 +306,8 @@ function getColorModifier(prop: string, value: string, rule: CSSStyleRule): stri
     return (theme) => modifyForegroundColor(rgb, theme);
 }
 
-const imageDetailsCache = new Map<string, ImageDetails>();
+const imageDetailsCache = new LRUMap<string, ImageDetails>(256);
+const IMAGE_LOADING_TIMEOUT = 30000;
 const awaitingForImageLoading = new Map<string, Array<(imageDetails: ImageDetails | null) => void>>();
 let didTryLoadCache = false;
 
@@ -502,6 +504,13 @@ export function getBgImageModifier(
                             }
                         } else {
                             awaitingForImageLoading.set(url, []);
+                            setTimeout(() => {
+                                const callbacks = awaitingForImageLoading.get(url);
+                                if (callbacks) {
+                                    awaitingForImageLoading.delete(url);
+                                    callbacks.forEach((cb) => cb(null));
+                                }
+                            }, IMAGE_LOADING_TIMEOUT);
                             imageDetails = await getImageDetails(url);
                             imageDetailsCache.set(url, imageDetails);
                             if (!url.startsWith('data:')) {
