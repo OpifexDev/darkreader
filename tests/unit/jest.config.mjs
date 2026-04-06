@@ -22,6 +22,7 @@ const config = {
         __PLUS__: false,
         __TEST__: true,
     },
+    setupFiles: ['<rootDir>/tests/unit/setup-dom-stub.js'],
     setupFilesAfterEnv: ['jest-extended/all'],
 };
 
