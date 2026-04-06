@@ -46,6 +46,7 @@ let fixes: DynamicThemeFix | null = null;
 let isIFrame: boolean | null = null;
 let ignoredImageAnalysisSelectors: string[] = [];
 let ignoredInlineSelectors: string[] = [];
+let isThemeActive = false;
 
 initVariableScheduler(() => variablesStore.matchVariablesAndDependents());
 export {variableScheduler};
@@ -299,6 +300,9 @@ function createDynamicStyleOverrides() {
 
     const processor = new ChunkedStylesheetProcessor<StyleManager>({
         processSheet: (manager) => {
+            if (!isThemeActive) {
+                return;
+            }
             manager.render(theme!, ignoredImageAnalysisSelectors);
         },
         onComplete: () => {
@@ -400,6 +404,9 @@ function createManager(element: StyleElement) {
     }
 
     function update() {
+        if (!isThemeActive) {
+            return;
+        }
         const details = manager.details({secondRound: true});
         if (!details) {
             return;
@@ -452,6 +459,7 @@ function runDynamicStyle() {
 }
 
 function createThemeAndWatchForUpdates() {
+    isThemeActive = true;
     createStaticStyleOverrides();
 
     if (!documentIsVisible() && !theme!.immediateModify) {
@@ -505,6 +513,9 @@ function getAdoptedStyleSheetFallback(sheet: CSSStyleSheet) {
 }
 
 function watchForUpdates() {
+    if (!isThemeActive) {
+        return;
+    }
     const managedStyles = Array.from(styleManagers.keys());
     watchForStyleChanges(managedStyles, ({created, updated, removed, moved}) => {
         resetAllTieredWatchers();
@@ -893,6 +904,7 @@ function setupDocumentPiPFontFix(): void {
 }
 
 export function removeDynamicTheme(): void {
+    isThemeActive = false;
     document.documentElement.removeAttribute(`data-darkreader-mode`);
     document.documentElement.removeAttribute(`data-darkreader-scheme`);
     removeInstantDarkStyle();
