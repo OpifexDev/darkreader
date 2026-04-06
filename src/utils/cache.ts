@@ -15,13 +15,14 @@ export class LRUMap<K, V> {
         return value;
     }
 
-    set(key: K, value: V): void {
+    set(key: K, value: V): this {
         this.map.delete(key);
         this.map.set(key, value);
         if (this.map.size > this.maxSize) {
             const first = this.map.keys().next().value!;
             this.map.delete(first);
         }
+        return this;
     }
 
     has(key: K): boolean {
@@ -38,6 +39,30 @@ export class LRUMap<K, V> {
 
     get size(): number {
         return this.map.size;
+    }
+
+    forEach(callbackfn: (value: V, key: K, map: Map<K, V>) => void, thisArg?: unknown): void {
+        this.map.forEach(callbackfn, thisArg);
+    }
+
+    keys(): MapIterator<K> {
+        return this.map.keys();
+    }
+
+    values(): MapIterator<V> {
+        return this.map.values();
+    }
+
+    entries(): MapIterator<[K, V]> {
+        return this.map.entries();
+    }
+
+    [Symbol.iterator](): MapIterator<[K, V]> {
+        return this.map[Symbol.iterator]();
+    }
+
+    get [Symbol.toStringTag](): string {
+        return 'LRUMap';
     }
 }
 
