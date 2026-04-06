@@ -705,8 +705,11 @@ let prevFixes: DynamicThemeFix | null = null;
  * extension should use only createOrUpdateDynamicTheme()
  */
 export function createOrUpdateDynamicThemeInternal(themeConfig: Theme, dynamicThemeFixes: DynamicThemeFix | null, iframe: boolean): void {
+    const isFirstActivation = !prevTheme;
     theme = themeConfig;
-    injectInstantDarkStyle(theme);
+    if (isFirstActivation) {
+        injectInstantDarkStyle(theme);
+    }
     fixes = dynamicThemeFixes;
 
     const colorAffectingKeys: Array<keyof Theme> = [
