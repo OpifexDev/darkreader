@@ -4,6 +4,7 @@ interface ChunkedProcessorOptions<T> {
     frameBudgetMs?: number;
     rafFn?: (cb: () => void) => number;
     nowFn?: () => number;
+    synchronous?: boolean;
 }
 
 const DEFAULT_FRAME_BUDGET = 12;
@@ -18,6 +19,7 @@ export class ChunkedStylesheetProcessor<T = unknown> {
     private rafFn: (cb: () => void) => number;
     private nowFn: () => number;
     private running = false;
+    private synchronous: boolean;
 
     constructor(options: ChunkedProcessorOptions<T>) {
         this.processSheet = options.processSheet;
@@ -25,6 +27,7 @@ export class ChunkedStylesheetProcessor<T = unknown> {
         this.frameBudgetMs = options.frameBudgetMs ?? DEFAULT_FRAME_BUDGET;
         this.rafFn = options.rafFn ?? requestAnimationFrame.bind(window);
         this.nowFn = options.nowFn ?? performance.now.bind(performance);
+        this.synchronous = options.synchronous ?? false;
     }
 
     enqueueCritical(sheets: T[]): void {
@@ -53,7 +56,20 @@ export class ChunkedStylesheetProcessor<T = unknown> {
 
     start(): void {
         this.running = true;
-        this.scheduleNext();
+        if (this.synchronous) {
+            this.processAll();
+        } else {
+            this.scheduleNext();
+        }
+    }
+
+    private processAll(): void {
+        while (this.hasMore()) {
+            const sheet = this.getNextSheet()!;
+            this.processSheet(sheet);
+        }
+        this.running = false;
+        this.onComplete();
     }
 
     private scheduleNext(): void {

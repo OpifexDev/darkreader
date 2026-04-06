@@ -307,6 +307,7 @@ function createDynamicStyleOverrides() {
                 cleanFallbackStyle();
             }
         },
+        synchronous: __TEST__,
     });
 
     processor.enqueueCritical(criticalManagers);
