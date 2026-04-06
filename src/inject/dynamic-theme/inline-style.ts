@@ -1,8 +1,6 @@
 import type {Theme} from '../../definitions';
 import {forEach, push} from '../../utils/array';
 import {isShadowDomSupported} from '../../utils/platform';
-import {throttle} from '../../utils/throttle';
-import {getDuration} from '../../utils/time';
 import {getAbsoluteURL} from '../../utils/url';
 import {iterateShadowHosts, createOptimizedTreeObserver, isReadyStateComplete, addReadyStateCompleteListener, addDOMReadyListener, isDOMReady} from '../utils/dom';
 
@@ -13,6 +11,53 @@ import type {CSSVariableModifier, ModifiedVarDeclaration} from './variables';
 import {variablesStore} from './variables';
 import {variableScheduler} from './variable-scheduler';
 
+const COLOR_PROPERTIES = new Set([
+    'color', 'background', 'background-color', 'background-image',
+    'border-color', 'border-top-color', 'border-right-color',
+    'border-bottom-color', 'border-left-color',
+    'outline-color', 'fill', 'stroke', 'stop-color',
+    'box-shadow', 'text-shadow', 'text-decoration-color',
+    'column-rule-color', 'caret-color', 'flood-color', 'lighting-color',
+]);
+
+const lastSeenStyles = new WeakMap<HTMLElement, string>();
+
+function hasColorPropertyChanged(element: HTMLElement): boolean {
+    const currentCSS = element.style.cssText;
+    const previousCSS = lastSeenStyles.get(element);
+    lastSeenStyles.set(element, currentCSS);
+
+    if (previousCSS === undefined) {
+        return true;
+    }
+    if (previousCSS === currentCSS) {
+        return false;
+    }
+
+    const currentProps = parseStyleProps(currentCSS);
+    const previousProps = parseStyleProps(previousCSS);
+
+    for (const prop of COLOR_PROPERTIES) {
+        if (currentProps.get(prop) !== previousProps.get(prop)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function parseStyleProps(cssText: string): Map<string, string> {
+    const props = new Map<string, string>();
+    const parts = cssText.split(';');
+    for (const part of parts) {
+        const colonIndex = part.indexOf(':');
+        if (colonIndex > 0) {
+            const name = part.substring(0, colonIndex).trim();
+            const value = part.substring(colonIndex + 1).trim();
+            props.set(name, value);
+        }
+    }
+    return props;
+}
 
 interface Overrides {
     [cssProp: string]: {
@@ -210,54 +255,30 @@ function deepWatchForInlineStyles(
     });
     treeObservers.set(root, treeObserver);
 
-    let attemptCount = 0;
-    let start: number | null = null;
-    const ATTEMPTS_INTERVAL = getDuration({seconds: 10});
-    const RETRY_TIMEOUT = getDuration({seconds: 2});
-    const MAX_ATTEMPTS_COUNT = 50;
-    let cache: MutationRecord[] = [];
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const pendingElements = new Set<HTMLElement>();
+    let batchScheduled = false;
 
-    const handleAttributeMutations = throttle((mutations: MutationRecord[]) => {
-        const handledTargets = new Set<Node>();
-        mutations.forEach((m) => {
-            const target = m.target as HTMLElement;
-            if (handledTargets.has(target)) {
-                return;
+    function processBatch() {
+        batchScheduled = false;
+        for (const element of pendingElements) {
+            if (hasColorPropertyChanged(element)) {
+                elementStyleDidChange(element);
             }
-            if (INLINE_STYLE_ATTRS.includes(m.attributeName!)) {
-                handledTargets.add(target);
-                elementStyleDidChange(target);
-            }
-        });
+        }
+        pendingElements.clear();
         variableScheduler.markDirty();
-    });
+    }
+
     const attrObserver = new MutationObserver((mutations) => {
-        if (timeoutId) {
-            cache.push(...mutations);
-            return;
-        }
-        attemptCount++;
-        const now = Date.now();
-        if (start == null) {
-            start = now;
-        } else if (attemptCount >= MAX_ATTEMPTS_COUNT) {
-            if (now - start < ATTEMPTS_INTERVAL) {
-                timeoutId = setTimeout(() => {
-                    start = null;
-                    attemptCount = 0;
-                    timeoutId = null;
-                    const attributeCache = cache;
-                    cache = [];
-                    handleAttributeMutations(attributeCache);
-                }, RETRY_TIMEOUT);
-                cache.push(...mutations);
-                return;
+        for (const m of mutations) {
+            if (INLINE_STYLE_ATTRS.includes(m.attributeName!)) {
+                pendingElements.add(m.target as HTMLElement);
             }
-            start = now;
-            attemptCount = 1;
         }
-        handleAttributeMutations(mutations);
+        if (pendingElements.size > 0 && !batchScheduled) {
+            batchScheduled = true;
+            requestAnimationFrame(processBatch);
+        }
     });
     attrObserver.observe(root, {
         attributes: true,
