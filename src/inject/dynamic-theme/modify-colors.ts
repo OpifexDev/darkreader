@@ -1,5 +1,6 @@
 import {extendThemeCacheKeys, getBackgroundPoles, getTextPoles, modifyBgColorExtended, modifyFgColorExtended, modifyLightSchemeColorExtended} from '@plus/utils/theme';
 import type {Theme} from '../../definitions';
+import {LRUMap} from '../../utils/cache';
 import {applyColorMatrix, createFilterMatrix} from '../../generators/utils/matrix';
 import {getRegisteredColor, registerColor} from '../../inject/dynamic-theme/palette';
 import type {RGBA, HSLA} from '../../utils/color';
@@ -23,7 +24,7 @@ function getFgPole(theme: Theme) {
     return theme[prop];
 }
 
-const colorModificationCache = new Map<HSLModifyFunction, Map<string, string>>();
+const colorModificationCache = new Map<HSLModifyFunction, LRUMap<string, string>>();
 
 export function clearColorModificationCache(): void {
     colorModificationCache.clear();
@@ -56,12 +57,28 @@ function getCacheId(rgb: RGBA, theme: Theme, poleA?: string, poleB?: string): st
     return resultId;
 }
 
+let lastThemeCacheKey: string | null = null;
+
+function getThemeCacheKey(theme: Theme): string {
+    let key = '';
+    themeCacheKeys.forEach((k) => {
+        key += `${theme[k]};`;
+    });
+    return key;
+}
+
 function modifyColorWithCache(rgb: RGBA, theme: Theme, modifyHSL: HSLModifyFunction, poleColor?: string, anotherPoleColor?: string): string {
-    let fnCache: Map<string, string>;
+    const currentThemeCacheKey = getThemeCacheKey(theme);
+    if (lastThemeCacheKey !== null && lastThemeCacheKey !== currentThemeCacheKey) {
+        colorModificationCache.clear();
+    }
+    lastThemeCacheKey = currentThemeCacheKey;
+
+    let fnCache: LRUMap<string, string>;
     if (colorModificationCache.has(modifyHSL)) {
         fnCache = colorModificationCache.get(modifyHSL)!;
     } else {
-        fnCache = new Map();
+        fnCache = new LRUMap(2048);
         colorModificationCache.set(modifyHSL, fnCache);
     }
     const id = getCacheId(rgb, theme, poleColor, anotherPoleColor);
