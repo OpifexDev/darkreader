@@ -27,6 +27,7 @@ import {injectProxy} from './stylesheet-proxy';
 import {variablesStore} from './variables';
 import {variableScheduler, initVariableScheduler} from './variable-scheduler';
 import {watchForStyleChanges, stopWatchingForStyleChanges} from './watch';
+import {disconnectAllConsolidatedObservers} from './watch/consolidated-observers';
 import {injectInstantDarkStyle, removeInstantDarkStyle, markPhaseComplete, clearPhaseAttribute} from './instant-style';
 import {ChunkedStylesheetProcessor} from './chunked-processor';
 
@@ -926,6 +927,8 @@ export function removeDynamicTheme(): void {
     adoptedStyleFallbacks.clear();
 
     metaObserver && metaObserver.disconnect();
+
+    disconnectAllConsolidatedObservers();
 
     cleaners.forEach((clean) => clean());
     cleaners.splice(0);
