@@ -66,6 +66,12 @@ export function createSheetWatcher(
     };
 }
 
+const activeTieredWatchers = new Set<{resetToActive(): void}>();
+
+export function resetAllTieredWatchers(): void {
+    activeTieredWatchers.forEach((w) => w.resetToActive());
+}
+
 export const TIER_ACTIVE_INTERVAL = 100;
 export const TIER_SETTLING_INTERVAL = 500;
 export const TIER_IDLE_INTERVAL = 2000;
@@ -129,7 +135,16 @@ export function createTieredSheetWatcher(
         timerId = setTimeout(poll, TIER_ACTIVE_INTERVAL);
     }
 
-    return {start, stop, resetToActive};
+    const watcher = {start, stop, resetToActive};
+    activeTieredWatchers.add(watcher);
+
+    const originalStop = stop;
+    function stopAndUnregister() {
+        originalStop();
+        activeTieredWatchers.delete(watcher);
+    }
+
+    return {start, stop: stopAndUnregister, resetToActive};
 }
 
 function createRAFSheetWatcher(

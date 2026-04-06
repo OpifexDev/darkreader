@@ -28,6 +28,7 @@ import {variablesStore} from './variables';
 import {variableScheduler, initVariableScheduler} from './variable-scheduler';
 import {watchForStyleChanges, stopWatchingForStyleChanges} from './watch';
 import {disconnectAllConsolidatedObservers} from './watch/consolidated-observers';
+import {resetAllTieredWatchers} from './watch/sheet-changes';
 import {injectInstantDarkStyle, removeInstantDarkStyle, markPhaseComplete, clearPhaseAttribute} from './instant-style';
 import {ChunkedStylesheetProcessor} from './chunked-processor';
 
@@ -506,6 +507,7 @@ function getAdoptedStyleSheetFallback(sheet: CSSStyleSheet) {
 function watchForUpdates() {
     const managedStyles = Array.from(styleManagers.keys());
     watchForStyleChanges(managedStyles, ({created, updated, removed, moved}) => {
+        resetAllTieredWatchers();
         const stylesToRemove = removed;
         const stylesToManage = created.concat(updated).concat(moved)
             .filter((style) => !styleManagers.has(style));

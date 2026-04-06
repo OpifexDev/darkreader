@@ -32,9 +32,7 @@ export class ChunkedStylesheetProcessor<T = unknown> {
 
     enqueueCritical(sheets: T[]): void {
         this.criticalQueue.push(...sheets);
-        if (this.running) {
-            this.scheduleNext();
-        } else {
+        if (!this.running) {
             this.running = true;
             this.scheduleNext();
         }
