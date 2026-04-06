@@ -27,6 +27,7 @@ import {injectProxy} from './stylesheet-proxy';
 import {variablesStore} from './variables';
 import {variableScheduler, initVariableScheduler} from './variable-scheduler';
 import {watchForStyleChanges, stopWatchingForStyleChanges} from './watch';
+import {injectInstantDarkStyle, removeInstantDarkStyle, markPhaseComplete, clearPhaseAttribute} from './instant-style';
 
 export {createFallbackFactory} from './modify-css';
 
@@ -418,6 +419,8 @@ function onDOMReady() {
 function runDynamicStyle() {
     createDynamicStyleOverrides();
     watchForUpdates();
+    removeInstantDarkStyle();
+    markPhaseComplete();
 }
 
 function createThemeAndWatchForUpdates() {
@@ -674,6 +677,7 @@ let prevFixes: DynamicThemeFix | null = null;
  */
 export function createOrUpdateDynamicThemeInternal(themeConfig: Theme, dynamicThemeFixes: DynamicThemeFix | null, iframe: boolean): void {
     theme = themeConfig;
+    injectInstantDarkStyle(theme);
     fixes = dynamicThemeFixes;
 
     const colorAffectingKeys: Array<keyof Theme> = [
@@ -859,6 +863,8 @@ function setupDocumentPiPFontFix(): void {
 export function removeDynamicTheme(): void {
     document.documentElement.removeAttribute(`data-darkreader-mode`);
     document.documentElement.removeAttribute(`data-darkreader-scheme`);
+    removeInstantDarkStyle();
+    clearPhaseAttribute();
     cleanDynamicThemeCache();
     removeNode(document.querySelector('.darkreader--fallback'));
     if (document.head) {
