@@ -130,6 +130,9 @@ function modifyLightSchemeColor(rgb: RGBA, theme: Theme): string {
     return modifyColorWithCache(rgb, theme, modifyLightModeHSL, poleFg, poleBg);
 }
 
+const LIGHT_MODE_GAMMA = 0.55;
+const LIGHT_MODE_WARM_HUE = 40;
+
 function modifyLightModeHSL({h, s, l, a}: HSLA, poleFg: HSLA, poleBg: HSLA): HSLA {
     const isDark = l < 0.5;
     let isNeutral: boolean;
@@ -144,15 +147,16 @@ function modifyLightModeHSL({h, s, l, a}: HSLA, poleFg: HSLA, poleBg: HSLA): HSL
     let sx = s;
     if (isNeutral) {
         if (isDark) {
-            hx = poleFg.h;
-            sx = poleFg.s;
+            hx = LIGHT_MODE_WARM_HUE;
+            sx = Math.max(poleFg.s, 0.08);
         } else {
             hx = poleBg.h;
             sx = poleBg.s;
         }
     }
 
-    const lx = scale(l, 0, 1, poleFg.l, poleBg.l);
+    const adjustedL = Math.pow(l, LIGHT_MODE_GAMMA);
+    const lx = scale(adjustedL, 0, 1, poleFg.l, poleBg.l);
 
     return {h: hx, s: sx, l: lx, a};
 }

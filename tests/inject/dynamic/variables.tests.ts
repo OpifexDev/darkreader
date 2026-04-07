@@ -717,7 +717,7 @@ describe('CSS VARIABLES OVERRIDE', () => {
         const lightTheme = {...theme, mode: 0, lightSchemeBackgroundColor: '#dddddd', lightSchemeTextColor: '#222222'};
         createOrUpdateDynamicTheme(lightTheme, null, false);
         expect(getComputedStyle(container.querySelector('h1')!).backgroundColor).toBe('rgb(221, 221, 221)');
-        expect(getComputedStyle(container.querySelector('h1')!).color).toBe('rgb(34, 34, 34)');
+        expect(getComputedStyle(container.querySelector('h1')!).color).toBe('rgb(37, 35, 31)');
     });
 
     it('should handle variables inside values', () => {
