@@ -67,6 +67,13 @@ function getThemeCacheKey(theme: Theme): string {
     return key;
 }
 
+function isIdentityFilter(theme: Theme): boolean {
+    return theme.sepia === 0
+        && theme.grayscale === 0
+        && theme.contrast === 100
+        && theme.brightness === 100;
+}
+
 function modifyColorWithCache(rgb: RGBA, theme: Theme, modifyHSL: HSLModifyFunction, poleColor?: string, anotherPoleColor?: string): string {
     const currentThemeCacheKey = getThemeCacheKey(theme);
     if (lastThemeCacheKey !== null && lastThemeCacheKey !== currentThemeCacheKey) {
@@ -91,8 +98,11 @@ function modifyColorWithCache(rgb: RGBA, theme: Theme, modifyHSL: HSLModifyFunct
     const anotherPole = anotherPoleColor == null ? null : parseToHSLWithCache(anotherPoleColor);
     const modified = modifyHSL(hsl, pole!, anotherPole!);
     const {r, g, b, a} = hslToRGB(modified);
-    const matrix = createFilterMatrix({...theme, mode: 0});
-    const [rf, gf, bf] = applyColorMatrix([r, g, b], matrix);
+    let rf = r, gf = g, bf = b;
+    if (!isIdentityFilter(theme)) {
+        const matrix = createFilterMatrix({...theme, mode: 0});
+        [rf, gf, bf] = applyColorMatrix([r, g, b], matrix);
+    }
 
     const color = (a === 1 ?
         rgbToHexString({r: rf, g: gf, b: bf}) :
