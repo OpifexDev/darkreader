@@ -124,29 +124,27 @@ function modifyAndRegisterColor(
     return registerColor(type, rgb, value);
 }
 
-const LIGHT_MODE_WARM_HUE = 40;
+const LIGHT_MODE_WARM_HUE = 45;
+const LIGHT_MODE_ACCENT_SAT_CAP = 0.55;
 const MIN_LIGHT_BG_LIGHTNESS = 0.6;
 const MAX_LIGHT_FG_LIGHTNESS = 0.4;
 
 function modifyLightBgHSL({h, s, l, a}: HSLA, pole: HSLA): HSLA {
     const isLight = l > 0.5;
-    const isBlue = h > 200 && h < 280;
-    const isNeutral = s < 0.12 || (l < 0.2 && isBlue);
+    const isNeutral = s < 0.12 || (l < 0.2 && h > 200 && h < 280);
     if (isLight) {
         const lx = scale(l, 0.5, 1, MIN_LIGHT_BG_LIGHTNESS, pole.l);
         if (isNeutral) {
             return {h: pole.h, s: pole.s, l: lx, a};
         }
-        return {h, s, l: lx, a};
+        return {h, s: s < LIGHT_MODE_ACCENT_SAT_CAP ? s : LIGHT_MODE_ACCENT_SAT_CAP, l: lx, a};
     }
 
     const lx = scale(l, 0, 0.5, pole.l, MIN_LIGHT_BG_LIGHTNESS);
-
     if (isNeutral) {
-        return {h: LIGHT_MODE_WARM_HUE, s: Math.max(pole.s, 0.08), l: lx, a};
+        return {h: LIGHT_MODE_WARM_HUE, s: pole.s > 0.08 ? pole.s : 0.08, l: lx, a};
     }
-
-    return {h, s, l: lx, a};
+    return {h, s: s < LIGHT_MODE_ACCENT_SAT_CAP ? s : LIGHT_MODE_ACCENT_SAT_CAP, l: lx, a};
 }
 
 function modifyLightFgHSL({h, s, l, a}: HSLA, pole: HSLA): HSLA {
@@ -157,38 +155,27 @@ function modifyLightFgHSL({h, s, l, a}: HSLA, pole: HSLA): HSLA {
         if (isNeutral) {
             return {h: pole.h, s: pole.s, l: lx, a};
         }
-        return {h, s, l: lx, a};
-    }
-
-    if (isNeutral) {
-        const lx = scale(l, 0.5, 1, MAX_LIGHT_FG_LIGHTNESS, pole.l);
-        return {h: pole.h, s: pole.s, l: lx, a};
+        return {h, s: s < LIGHT_MODE_ACCENT_SAT_CAP ? s : LIGHT_MODE_ACCENT_SAT_CAP, l: lx, a};
     }
 
     const lx = scale(l, 0.5, 1, MAX_LIGHT_FG_LIGHTNESS, pole.l);
-    return {h, s, l: lx, a};
+    if (isNeutral) {
+        return {h: pole.h, s: pole.s, l: lx, a};
+    }
+    return {h, s: s < LIGHT_MODE_ACCENT_SAT_CAP ? s : LIGHT_MODE_ACCENT_SAT_CAP, l: lx, a};
 }
 
 function modifyLightBorderHSL({h, s, l, a}: HSLA, poleFg: HSLA, poleBg: HSLA): HSLA {
     const isDark = l < 0.5;
     const isNeutral = l > 0.8 || l < 0.2 || s < 0.24;
-
-    let hx = h;
-    let sx = s;
-
-    if (isNeutral) {
-        if (isDark) {
-            hx = poleBg.h;
-            sx = poleBg.s;
-        } else {
-            hx = poleFg.h;
-            sx = poleFg.s;
-        }
-    }
-
     const lx = scale(l, 0, 1, 0.5, 0.8);
 
-    return {h: hx, s: sx, l: lx, a};
+    if (isNeutral) {
+        const neutralPole = isDark ? poleBg : poleFg;
+        return {h: neutralPole.h, s: neutralPole.s, l: lx, a};
+    }
+
+    return {h, s: s < LIGHT_MODE_ACCENT_SAT_CAP ? s : LIGHT_MODE_ACCENT_SAT_CAP, l: lx, a};
 }
 
 
