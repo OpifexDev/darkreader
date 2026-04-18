@@ -14,8 +14,8 @@ export const DEFAULT_COLORS = {
         text: '#e8e6e3',
     },
     lightScheme: {
-        background: '#dcdad7',
-        text: '#181a1b',
+        background: '#f1e9d2',
+        text: '#3c3836',
     },
 };
 

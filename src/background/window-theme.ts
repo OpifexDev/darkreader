@@ -64,7 +64,7 @@ const $colors: { [key: string]: string } = {
     // 'textcolor' is the predecessor of 'tab_background_text'.
     // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/theme#colors
     textcolor: 'white',
-    toolbar: '#707070',
+    toolbar: '#cccccc',
     toolbar_field: 'lightgray',
     toolbar_field_text: 'black',
 };
